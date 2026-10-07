@@ -1,0 +1,264 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+enum TeamRole {
+  LEADER
+  MEMBER
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  READY_FOR_REVIEW
+  COMPLETED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum ChannelType {
+  TEAM
+  PROJECT
+}
+
+model User {
+  id            Int      @id @default(autoincrement())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now())
+
+  accounts              Account[]
+  sessions              Session[]
+
+  teamMemberships       TeamMember[]
+  createdTeams          Team[]       @relation("TeamCreator")
+  projectMemberships    ProjectMember[]
+  createdProjects       Project[]    @relation("ProjectCreator")
+  assignedTasks         Task[]       @relation("TaskAssignee")
+  createdTasks          Task[]       @relation("TaskCreator")
+  messages              Message[]
+  notificationRecipients NotificationRecipient[]
+  activities            Activity[]
+}
+
+model Account {
+  id                Int   @id @default(autoincrement())
+  userId            Int
+  type              String
+  provider          String
+  providerAccountId String
+
+  refresh_token String?
+  access_token  String?
+  expires_at    Int?
+  token_type    String?
+  scope         String?
+  id_token      String?
+  session_state String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+
+
+model Session {
+  id           Int     @id @default(autoincrement())
+  sessionToken String   @unique
+  userId       Int
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Team {
+  id          Int     @id @default(autoincrement())
+  name        String
+  description String?
+  joinCode    String   @unique
+  createdBy   Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now())
+
+  creator  User         @relation("TeamCreator", fields: [createdBy], references: [id])
+  members  TeamMember[]
+  projects Project[]
+  channels Channel[]
+
+  @@index([createdBy])
+}
+
+model TeamMember {
+  id       Int     @id @default(autoincrement())
+  teamId   Int
+  userId   Int
+  role     TeamRole
+  joinedAt DateTime @default(now())
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([userId])
+}
+
+model Project {
+  id          Int     @id @default(autoincrement())
+  teamId      Int
+  name        String
+  description String?
+  deadline    DateTime?
+  createdBy   Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now())
+
+  team    Team            @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  creator User            @relation("ProjectCreator", fields: [createdBy], references: [id])
+  members ProjectMember[]
+  tasks   Task[]
+  channels Channel[]
+
+  @@index([teamId])
+  @@index([createdBy])
+}
+
+model ProjectMember {
+  id        Int     @id @default(autoincrement())
+  projectId Int
+  userId    Int
+  joinedAt  DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([userId])
+}
+
+model Task {
+  id          Int         @id @default(autoincrement())
+  projectId   Int
+  title       String
+  description String?
+  assignedTo  Int?
+  createdBy   Int
+  status      TaskStatus   @default(TODO)
+  priority    TaskPriority @default(MEDIUM)
+  deadline    DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @default(now())
+
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignee  User?   @relation("TaskAssignee", fields: [assignedTo], references: [id], onDelete: SetNull)
+  creator   User    @relation("TaskCreator", fields: [createdBy], references: [id])
+
+  @@index([projectId])
+  @@index([assignedTo])
+}
+
+model Channel {
+  id        Int        @id @default(autoincrement())
+  teamId    Int?
+  projectId Int?
+  name      String
+  type      ChannelType
+  createdAt DateTime    @default(now())
+
+  team Team? @relation(fields: [teamId],references: [id],onDelete: Cascade)
+  project  Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@index([teamId])
+  @@index([projectId])
+}
+
+model Message {
+  id        Int     @id @default(autoincrement())
+  channelId Int
+  senderId  Int
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  sender  User    @relation(fields: [senderId], references: [id])
+
+  @@index([channelId, createdAt])
+  @@index([senderId])
+}
+
+model NotificationEvent {
+  id        Int     @id @default(autoincrement())
+  type      String
+  title     String
+  message   String
+  teamId    Int?
+  projectId Int?
+  createdAt DateTime @default(now())
+
+  recipients NotificationRecipient[]
+
+  @@index([teamId])
+  @@index([projectId])
+}
+
+model NotificationRecipient {
+  id                   Int     @id @default(autoincrement())
+  notificationEventId  Int
+  userId               Int
+  read                 Boolean  @default(false)
+  readAt               DateTime?
+
+  notificationEvent NotificationEvent @relation(fields: [notificationEventId], references: [id], onDelete: Cascade)
+  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationEventId, userId])
+  @@index([userId, read])
+}
+
+model Activity {
+  id        Int     @id @default(autoincrement())
+  actorId   Int
+  teamId    Int?
+  projectId Int?
+  type      String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  actor User @relation(fields: [actorId], references: [id])
+
+  @@index([teamId, createdAt])
+  @@index([projectId, createdAt])
+  @@index([actorId])
+}
