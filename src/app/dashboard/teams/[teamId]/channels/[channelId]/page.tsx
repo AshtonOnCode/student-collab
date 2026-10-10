@@ -42,9 +42,7 @@ export default async function ChannelPage({
     },
     include: {
       messages: {
-        orderBy: {
-          createdAt: "asc",
-        },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: 31,
         include: {
           sender: true,
@@ -64,7 +62,12 @@ export default async function ChannelPage({
       <h1>#{channel.name}</h1>
 
       <div>
-        <MessageList initialMessages={messages} teamId={teamIdNumber} channelId={channelIdNumber} />
+        <MessageList
+          initialMessages={messages}
+          teamId={teamIdNumber}
+          channelId={channelIdNumber}
+          currentUserId={session.user.id}
+        />
       </div>
     </div>
   );

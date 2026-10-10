@@ -53,6 +53,37 @@ export async function sendMessage(formData: FormData) {
     },
   });
 
+  // Broadcast the saved message through Socket.IO.
+  // A broadcast failure must not undo the database write.
+
+  const socketSecret = process.env.SOCKET_INTERNAL_SECRET;
+
+  if (!socketSecret) {
+    console.error("SOCKET_INTERNAL_SECRET is not configured");
+  } else {
+    try {
+      const response = await fetch("http://localhost:3001/internal/broadcast-message", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-internal-secret": socketSecret,
+        },
+        body: JSON.stringify({
+          channelId,
+          message,
+        }),
+        cache: "no-store",
+        signal: AbortSignal.timeout(3000),
+      });
+
+      if (!response.ok) {
+        console.error("Message saved, but Socket.IO broadcast failed:", response.status);
+      }
+    } catch (error) {
+      console.error("Message saved, but Socket.IO broadcast was unavailable:", error);
+    }
+  }
+
   return message;
 }
 
@@ -90,9 +121,7 @@ export async function getOlderMessages(teamId: number, channelId: number, cursor
     where: {
       channelId,
     },
-    orderBy: {
-      createdAt: "desc",
-    },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     cursor: {
       id: cursor,
     },
