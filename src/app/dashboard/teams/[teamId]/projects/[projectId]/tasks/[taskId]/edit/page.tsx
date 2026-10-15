@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
-import { updateTask } from "../../actions";
 import { auth } from "../../../../../../../../../features/auth/auth";
 import { prisma } from "../../../../../../../../../lib/prisma";
+import { updateTask } from "../../actions";
 
 export default async function EditTaskPage({
   params,

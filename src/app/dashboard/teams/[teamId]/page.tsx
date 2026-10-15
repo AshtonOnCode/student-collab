@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
-import { prisma } from "../../../../lib/prisma";
 import { auth } from "../../../../features/auth/auth";
+import { prisma } from "../../../../lib/prisma";
 import MemberActions from "./membership/member-actions";
 
 export default async function TeamPage({ params }: { params: Promise<{ teamId: string }> }) {
@@ -99,7 +99,7 @@ export default async function TeamPage({ params }: { params: Promise<{ teamId: s
       ))}
 
       {membership.role === "LEADER" && (
-        <a href={`/dashboard/teams/${teamIdNumber}/channels/create`}>Create Channel</a>
+        <a href={`/dashboard/teams/${teamIdNumber}/channels/`}>Create Channel</a>
       )}
     </div>
   );

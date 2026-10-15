@@ -5,6 +5,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { Server } from "socket.io";
 import { prisma } from "./src/lib/prisma";
+import { decode } from "@auth/core/jwt";
 
 /* -------------------------------------------------------------------------- */
 /* Config                                                                     */
@@ -160,28 +161,29 @@ const io = new Server(httpServer, {
 io.use(async (socket, next) => {
   try {
     const cookieHeader = socket.handshake.headers.cookie;
+    console.log(
+      "[socket] cookie names:",
+      cookieHeader?.split(";").map((c) => c.trim().split("=")[0])
+    );
 
-    const sessionToken =
-      getCookie(cookieHeader, "authjs.session-token") ??
-      getCookie(cookieHeader, "__Secure-authjs.session-token");
+    const secure = getCookie(cookieHeader, "__Secure-authjs.session-token");
+    const plain = getCookie(cookieHeader, "authjs.session-token");
+    const token = secure ?? plain;
+    const salt = secure ? "__Secure-authjs.session-token" : "authjs.session-token";
 
-    if (!sessionToken) {
-      return next(new Error("Authentication required"));
-    }
+    if (!token) return next(new Error("Authentication required"));
 
-    const session = await prisma.session.findUnique({
-      where: { sessionToken },
-      include: { user: true },
-    });
+    const payload = await decode({ token, secret: process.env.AUTH_SECRET!, salt });
 
-    if (!session || session.expires <= new Date()) {
-      return next(new Error("Invalid or expired session"));
-    }
+    if (!payload?.sub) return next(new Error("Invalid or expired session"));
 
-    socket.data.userId = session.user.id;
+    const userId = Number(payload.sub);
+    if (!isValidId(userId)) return next(new Error("Invalid session"));
+    socket.data.userId = userId;
+
     next();
   } catch (error) {
-    console.error("Socket authentication failed:", error);
+    console.error("[socket] auth failed:", error);
     next(new Error("Authentication failed"));
   }
 });
@@ -212,6 +214,7 @@ io.on("connection", (socket) => {
       }
 
       await socket.join(`channel:${channelId}`);
+
       callback({ ok: true });
     } catch (error) {
       console.error("Channel join failed:", error);

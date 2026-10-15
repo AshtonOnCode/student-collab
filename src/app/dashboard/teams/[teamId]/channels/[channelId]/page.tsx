@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "../../../../../../features/auth/auth";
 import { prisma } from "../../../../../../lib/prisma";
-import { sendMessage } from "./action";
 import MessageList from "./components/message-list";
 
 export default async function ChannelPage({
@@ -63,6 +62,7 @@ export default async function ChannelPage({
 
       <div>
         <MessageList
+          key={channelId}
           initialMessages={messages}
           teamId={teamIdNumber}
           channelId={channelIdNumber}

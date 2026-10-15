@@ -2,7 +2,7 @@
 CREATE TYPE "TeamRole" AS ENUM ('LEADER', 'MEMBER');
 
 -- CreateEnum
-CREATE TYPE "TaskStatus" AS ENUM ('TODO', 'IN_PROGRESS', 'READY_FOR_REVIEW', 'COMPLETED');
+CREATE TYPE "TaskStatus" AS ENUM ('TODO', 'IN_PROGRESSa', 'READY_FOR_REVIEW', 'COMPLETED');
 
 -- CreateEnum
 CREATE TYPE "TaskPriority" AS ENUM ('LOW', 'MEDIUM', 'HIGH');
@@ -31,6 +31,13 @@ CREATE TABLE "Account" (
     "type" TEXT NOT NULL,
     "provider" TEXT NOT NULL,
     "providerAccountId" TEXT NOT NULL,
+    "refresh_token" TEXT,
+    "access_token" TEXT,
+    "expires_at" INTEGER,
+    "token_type" TEXT,
+    "scope" TEXT,
+    "id_token" TEXT,
+    "session_state" TEXT,
 
     CONSTRAINT "Account_pkey" PRIMARY KEY ("id")
 );
@@ -132,6 +139,7 @@ CREATE TABLE "Channel" (
 -- CreateTable
 CREATE TABLE "Message" (
     "id" SERIAL NOT NULL,
+    "clientMessageId" TEXT NOT NULL,
     "channelId" INTEGER NOT NULL,
     "senderId" INTEGER NOT NULL,
     "content" TEXT NOT NULL,
@@ -242,6 +250,9 @@ CREATE INDEX "Message_channelId_createdAt_idx" ON "Message"("channelId", "create
 CREATE INDEX "Message_senderId_idx" ON "Message"("senderId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Message_senderId_clientMessageId_key" ON "Message"("senderId", "clientMessageId");
+
+-- CreateIndex
 CREATE INDEX "NotificationEvent_teamId_idx" ON "NotificationEvent"("teamId");
 
 -- CreateIndex
@@ -297,6 +308,9 @@ ALTER TABLE "Task" ADD CONSTRAINT "Task_assignedTo_fkey" FOREIGN KEY ("assignedT
 
 -- AddForeignKey
 ALTER TABLE "Task" ADD CONSTRAINT "Task_createdBy_fkey" FOREIGN KEY ("createdBy") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Channel" ADD CONSTRAINT "Channel_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Channel" ADD CONSTRAINT "Channel_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
